@@ -43,6 +43,15 @@ function createExamplesHtml(examples) {
   `;
 }
 
+// Show success/error message in tooltip
+function showMessage(message, isSuccess = true) {
+  return `
+        <div class="tooltip-message ${isSuccess ? "success" : "error"}">
+            ${message}
+        </div>
+    `;
+}
+
 // Handle text selection
 async function handleTextSelection(event) {
   const selectedText = window.getSelection().toString().trim();
@@ -149,10 +158,24 @@ async function saveWord(original, translation) {
   };
 
   // Send message to background script to save the word
-  chrome.runtime.sendMessage({
-    action: "saveWord",
-    data: wordData,
-  });
+  chrome.runtime.sendMessage(
+    {
+      action: "saveWord",
+      data: wordData,
+    },
+    (response) => {
+      if (response && tooltip) {
+        tooltip.innerHTML = showMessage(response.message, response.success);
+
+        // Hide tooltip after 2 seconds
+        setTimeout(() => {
+          if (tooltip) {
+            tooltip.style.display = "none";
+          }
+        }, 2000);
+      }
+    }
+  );
 }
 
 // Event listeners

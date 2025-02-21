@@ -9,6 +9,7 @@
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
     font-size: 14px;
     border: 1px solid #e0e0e0;
+    min-width: 200px;
 }
 
 .tooltip-content {
@@ -137,4 +138,25 @@
 
 .retry-button:active {
     background: #b71c1c;
+}
+
+/* Success/Error Messages */
+.tooltip-message {
+    text-align: center;
+    padding: 10px;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.tooltip-message.success {
+    background: #E8F5E9;
+    color: #2E7D32;
+    border: 1px solid #A5D6A7;
+}
+
+.tooltip-message.error {
+    background: #FFEBEE;
+    color: #C62828;
+    border: 1px solid #FFCDD2;
 } 
