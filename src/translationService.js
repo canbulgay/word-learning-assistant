@@ -71,22 +71,35 @@ async function getExampleSentences(word, lang = "en") {
 
     // Kelimeyi içeren cümleleri filtrele
     const wordRegex = new RegExp(`\\b${word}\\b`, "i");
-    const examples = data.results
-      ?.slice(0, 3)
-      ?.filter((result) => {
-        // Sadece kelimeyi içeren ve çevirisi olan cümleleri al
-        return wordRegex.test(result.text) && result.translations?.length > 0;
-      })
-      ?.map((result) => {
-        // API'den gelen çeviriyi kullan
-        const translation = result.translations?.[0]?.[0]?.text || "";
-        return {
-          original: capitalizeFirstLetter(result.text),
-          translation: capitalizeFirstLetter(translation),
-        };
-      });
+    const examples = [];
 
-    if (!examples || examples.length === 0) {
+    // API yanıtını kontrol et ve örnekleri işle
+    if (data.results && Array.isArray(data.results)) {
+      for (const result of data.results) {
+        if (examples.length >= 3) break; // En fazla 3 örnek al
+
+        // Sadece kelimeyi içeren ve çevirisi olan cümleleri kontrol et
+        if (
+          wordRegex.test(result.text) &&
+          result.translations &&
+          result.translations.length > 0
+        ) {
+          const translation =
+            result.translations?.[0]?.[0]?.[0]?.text ||
+            result.translations?.[0]?.[0]?.text ||
+            result.translations[0]?.text;
+          if (translation) {
+            examples.push({
+              original: capitalizeFirstLetter(result.text),
+              translation: capitalizeFirstLetter(translation),
+            });
+          }
+        }
+      }
+    }
+
+    // Eğer yeterli örnek bulunamadıysa varsayılan örnekleri kullan
+    if (examples.length === 0) {
       console.warn("No suitable examples found, using default examples");
       return getDefaultExamples(word);
     }
