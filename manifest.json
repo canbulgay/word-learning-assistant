@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "Word Learning Assistant",
+  "version": "1.0",
+  "description": "Learn new words while reading by saving them with their translations",
+  "permissions": ["storage", "activeTab", "scripting"],
+  "host_permissions": ["https://libretranslate.de/*"],
+  "action": {
+    "default_popup": "src/popup/popup.html",
+    "default_icon": {
+      "16": "assets/icons/icon16.png",
+      "48": "assets/icons/icon48.png",
+      "128": "assets/icons/icon128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/translationService.js", "src/content.js"],
+      "css": ["styles/tooltip.css"]
+    }
+  ],
+  "background": {
+    "service_worker": "src/background.js"
+  },
+  "icons": {
+    "16": "assets/icons/icon16.png",
+    "48": "assets/icons/icon48.png",
+    "128": "assets/icons/icon128.png"
+  }
+}
