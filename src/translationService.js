@@ -49,7 +49,7 @@ function normalizeText(text) {
  * Gets example sentences from Tatoeba
  * @param {string} word - Word to get examples for
  * @param {string} lang - Language code
- * @returns {Promise<string[]>}
+ * @returns {Promise<Array>}
  */
 async function getExampleSentences(word, lang = "en") {
   try {
@@ -57,12 +57,13 @@ async function getExampleSentences(word, lang = "en") {
     const url = new URL(TATOEBA_API_URL);
     url.searchParams.append("query", word);
     url.searchParams.append("from", tatoebaLang);
+    url.searchParams.append("to", LANGUAGE_CODES.tr);
     url.searchParams.append("trans_filter", "limit:3");
 
     const response = await fetch(url.toString());
 
     if (!response.ok) {
-      console.warn("Tatoeba API error, falling back to default example");
+      console.warn("Tatoeba API error, falling back to default examples");
       return getDefaultExamples(word);
     }
 
@@ -71,23 +72,26 @@ async function getExampleSentences(word, lang = "en") {
     // Kelimeyi içeren cümleleri filtrele
     const wordRegex = new RegExp(`\\b${word}\\b`, "i");
     const examples = data.results
-      ?.filter((result) => wordRegex.test(result.text))
-      ?.map(async (result) => {
-        // Her örnek cümle için çeviri al
-        const translation = await translateText(result.text, lang, "tr");
+      ?.slice(0, 3)
+      ?.filter((result) => {
+        // Sadece kelimeyi içeren ve çevirisi olan cümleleri al
+        return wordRegex.test(result.text) && result.translations?.length > 0;
+      })
+      ?.map((result) => {
+        // API'den gelen çeviriyi kullan
+        const translation = result.translations?.[0]?.[0]?.text || "";
         return {
           original: capitalizeFirstLetter(result.text),
-          translation: translation.text,
+          translation: capitalizeFirstLetter(translation),
         };
       });
 
     if (!examples || examples.length === 0) {
+      console.warn("No suitable examples found, using default examples");
       return getDefaultExamples(word);
     }
 
-    // Tüm çevirilerin tamamlanmasını bekle
-    const translatedExamples = await Promise.all(examples.slice(0, 3));
-    return translatedExamples;
+    return examples;
   } catch (error) {
     console.error("Error getting Tatoeba examples:", error);
     return getDefaultExamples(word);
@@ -153,10 +157,6 @@ function getBestTranslation(responseData) {
  */
 async function translateText(text, sourceLang = "en", targetLang = "tr") {
   try {
-    console.log(
-      `Translation request for: "${text}" (${sourceLang} -> ${targetLang})`
-    );
-
     // Construct the API URL with parameters
     const url = new URL(MYMEMORY_API_URL);
     url.searchParams.append("q", text);
