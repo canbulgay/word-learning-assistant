@@ -46,30 +46,6 @@ function normalizeText(text) {
 }
 
 /**
- * Removes duplicate translations and normalizes them
- * @param {Array} translations - Array of translations
- * @returns {Array}
- */
-function filterAndNormalizeTranslations(translations) {
-  const seen = new Set();
-  const uniqueTranslations = [];
-
-  translations.forEach((trans) => {
-    const normalizedText = normalizeText(trans.text);
-    if (!seen.has(normalizedText)) {
-      seen.add(normalizedText);
-      uniqueTranslations.push({
-        ...trans,
-        text: capitalizeFirstLetter(trans.text.trim()),
-      });
-    }
-  });
-
-  // Kalite skoruna göre sırala
-  return uniqueTranslations.sort((a, b) => b.quality - a.quality);
-}
-
-/**
  * Gets example sentences from Tatoeba
  * @param {string} word - Word to get examples for
  * @param {string} lang - Language code
@@ -145,6 +121,30 @@ function getDefaultExamples(word) {
 }
 
 /**
+ * Gets the best translation based on quality score
+ * @param {Object} responseData - API response data
+ * @returns {string} - Best translation
+ */
+function getBestTranslation(responseData) {
+  // Tüm çevirileri topla
+  const translations = [
+    {
+      text: responseData.responseData.translatedText,
+      quality: 100, // Ana çeviri en yüksek kalite skoru
+    },
+    ...(responseData.matches?.map((match) => ({
+      text: match.translation,
+      quality: match.quality || 0,
+    })) || []),
+  ];
+
+  // Kalite skoruna göre sırala ve en iyisini al
+  const bestTranslation = translations.sort((a, b) => b.quality - a.quality)[0];
+
+  return bestTranslation.text;
+}
+
+/**
  * Translates text using MyMemory Translation API
  * @param {string} text - Text to translate
  * @param {string} sourceLang - Source language code
@@ -164,7 +164,6 @@ async function translateText(text, sourceLang = "en", targetLang = "tr") {
 
     const response = await fetch(url.toString());
     const responseData = await response.json();
-    console.log("API Response:", responseData);
 
     if (responseData.responseStatus !== 200) {
       let errorMessage = ERROR_MESSAGES.DEFAULT;
@@ -183,62 +182,29 @@ async function translateText(text, sourceLang = "en", targetLang = "tr") {
       throw new Error(errorMessage);
     }
 
-    if (
-      !responseData.responseData ||
-      !responseData.responseData.translatedText
-    ) {
-      console.error("Unexpected API response format:", responseData);
+    if (!responseData.responseData?.translatedText) {
       throw new Error(ERROR_MESSAGES.DEFAULT);
     }
 
     // Get example sentences
     const examples = await getExampleSentences(text, sourceLang);
 
-    // Tüm çevirileri topla
-    let allTranslations = [
-      {
-        text: responseData.responseData.translatedText,
-        quality: 100,
-      },
-      ...(responseData.matches?.map((match) => ({
-        text: match.translation,
-        quality: match.quality,
-      })) || []),
-    ];
+    // En iyi çeviriyi al ve normalize et
+    const translatedText = capitalizeFirstLetter(
+      getBestTranslation(responseData).trim()
+    );
 
-    // Çevirileri filtrele ve normalize et
-    allTranslations = filterAndNormalizeTranslations(allTranslations);
-
-    // Ana çeviri ve alternatifleri ayır
-    const mainTranslation = allTranslations[0];
-    const alternativeTranslations = allTranslations.slice(1, 3);
-
+    // Sadece en iyi çeviriyi döndür
     return {
-      text: mainTranslation.text,
+      text: translatedText,
       examples: examples,
       originalText: text,
       sourceLang,
       targetLang,
-      alternatives: alternativeTranslations,
     };
   } catch (error) {
-    console.error("Translation error details:", {
-      message: error.message,
-      originalError: error,
-      text,
-      sourceLang,
-      targetLang,
-    });
-
-    if (Object.values(ERROR_MESSAGES).includes(error.message)) {
-      throw error;
-    }
-
-    if (error.name === "TypeError" && error.message.includes("fetch")) {
-      throw new Error(ERROR_MESSAGES.NETWORK);
-    }
-
-    throw new Error(ERROR_MESSAGES.DEFAULT);
+    console.error("Translation error:", error);
+    throw error;
   }
 }
 

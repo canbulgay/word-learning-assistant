@@ -114,56 +114,31 @@ async function handleTextSelection(event) {
     const translation = await window.translateText(selectedText);
 
     // Create tooltip content
-    let content = '<div class="tooltip-content">';
-
-    // Main translation
-    content += `
-      <div class="translation-option main-translation">
-        <div class="translation-text">${translation.text}</div>
-        ${createExamplesHtml(translation.examples)}
-        <button class="save-button" data-translation='${JSON.stringify(
-          translation
-        )}'>Kaydet</button>
+    const content = `
+      <div class="tooltip-content">
+        <div class="translation-option main-translation">
+          <div class="translation-text">${translation.text}</div>
+          ${createExamplesHtml(translation.examples)}
+          <button class="save-button" data-translation='${JSON.stringify(
+            translation
+          )}'>Kaydet</button>
+        </div>
       </div>
     `;
 
-    // Alternative translations
-    if (translation.alternatives && translation.alternatives.length > 0) {
-      content += '<div class="alternative-translations">';
-      translation.alternatives.forEach((alt) => {
-        const altTranslation = {
-          text: alt.text,
-          examples: translation.examples,
-          originalText: translation.originalText,
-          sourceLang: translation.sourceLang,
-          targetLang: translation.targetLang,
-        };
-        content += `
-          <div class="translation-option alternative">
-            <div class="translation-text">${alt.text}</div>
-            <button class="save-button" data-translation='${JSON.stringify(
-              altTranslation
-            )}'>Kaydet</button>
-          </div>
-        `;
-      });
-      content += "</div>";
-    }
-
-    content += "</div>";
-
     tooltip.innerHTML = content;
 
-    // Add event listeners to all save buttons
-    tooltip.querySelectorAll(".save-button").forEach((button) => {
-      button.addEventListener("click", (event) => {
+    // Add event listener to save button
+    const saveButton = tooltip.querySelector(".save-button");
+    if (saveButton) {
+      saveButton.addEventListener("click", () => {
         const translationData = JSON.parse(
-          event.target.getAttribute("data-translation")
+          saveButton.getAttribute("data-translation")
         );
         saveWord(selectedText, translationData);
         tooltip.style.display = "none";
       });
-    });
+    }
   } catch (error) {
     console.error("Translation error:", error);
     tooltip.innerHTML = showError(error.message);
