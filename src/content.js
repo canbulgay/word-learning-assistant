@@ -121,7 +121,7 @@ async function handleTextSelection(event) {
           ${createExamplesHtml(translation.examples)}
           <button class="save-button" data-translation='${JSON.stringify(
             translation
-          )}'>Kaydet</button>
+          ).replace(/'/g, "&apos;")}'">Kaydet</button>
         </div>
       </div>
     `;
@@ -132,11 +132,22 @@ async function handleTextSelection(event) {
     const saveButton = tooltip.querySelector(".save-button");
     if (saveButton) {
       saveButton.addEventListener("click", () => {
-        const translationData = JSON.parse(
-          saveButton.getAttribute("data-translation")
-        );
-        saveWord(selectedText, translationData);
-        tooltip.style.display = "none";
+        try {
+          const translationData = JSON.parse(
+            saveButton.getAttribute("data-translation").replace(/&apos;/g, "'")
+          );
+          saveWord(selectedText, translationData);
+          tooltip.style.display = "none";
+        } catch (error) {
+          console.error("Error parsing translation data:", error);
+          tooltip.innerHTML = showMessage(
+            "Kelime kaydedilirken bir hata oluştu.",
+            false
+          );
+          setTimeout(() => {
+            tooltip.style.display = "none";
+          }, 2000);
+        }
       });
     }
   } catch (error) {
