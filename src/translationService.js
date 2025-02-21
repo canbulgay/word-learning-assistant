@@ -96,11 +96,22 @@ async function getExampleSentences(word, lang = "en") {
     const wordRegex = new RegExp(`\\b${word}\\b`, "i");
     const examples = data.results
       ?.filter((result) => wordRegex.test(result.text))
-      ?.map((result) => capitalizeFirstLetter(result.text))
-      ?.slice(0, 3);
+      ?.map(async (result) => {
+        // Her örnek cümle için çeviri al
+        const translation = await translateText(result.text, lang, "tr");
+        return {
+          original: capitalizeFirstLetter(result.text),
+          translation: translation.text,
+        };
+      });
 
-    // Eğer örnek bulunamadıysa varsayılan örnekleri kullan
-    return examples?.length > 0 ? examples : getDefaultExamples(word);
+    if (!examples || examples.length === 0) {
+      return getDefaultExamples(word);
+    }
+
+    // Tüm çevirilerin tamamlanmasını bekle
+    const translatedExamples = await Promise.all(examples.slice(0, 3));
+    return translatedExamples;
   } catch (error) {
     console.error("Error getting Tatoeba examples:", error);
     return getDefaultExamples(word);
@@ -114,11 +125,23 @@ async function getExampleSentences(word, lang = "en") {
  */
 function getDefaultExamples(word) {
   const examples = [
-    `The word "${word}" is commonly used in everyday conversations.`,
-    `Many people use "${word}" when they want to express this concept.`,
-    `In business contexts, "${word}" often appears in professional communications.`,
+    {
+      original: `The word "${word}" is commonly used in everyday conversations.`,
+      translation: `"${word}" kelimesi günlük konuşmalarda sıkça kullanılır.`,
+    },
+    {
+      original: `Many people use "${word}" when they want to express this concept.`,
+      translation: `Birçok insan bu kavramı ifade etmek istediğinde "${word}" kullanır.`,
+    },
+    {
+      original: `In business contexts, "${word}" often appears in professional communications.`,
+      translation: `İş bağlamında, "${word}" genellikle profesyonel iletişimde kullanılır.`,
+    },
   ];
-  return examples.map((example) => capitalizeFirstLetter(example));
+  return examples.map((example) => ({
+    original: capitalizeFirstLetter(example.original),
+    translation: capitalizeFirstLetter(example.translation),
+  }));
 }
 
 /**

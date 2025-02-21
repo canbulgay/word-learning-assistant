@@ -1,5 +1,19 @@
 // Text selection and tooltip handling
 let tooltip = null;
+let isTranslating = false;
+
+// Debounce function to prevent multiple rapid calls
+function debounce(func, wait) {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+}
 
 // Create tooltip element
 function createTooltip() {
@@ -35,7 +49,10 @@ function createExamplesHtml(examples) {
       ${examples
         .map(
           (example) => `
-        <div class="translation-example">${example}</div>
+        <div class="translation-example">
+          <div class="example-original">${example.original}</div>
+          <div class="example-translation">${example.translation}</div>
+        </div>
       `
         )
         .join("")}
@@ -51,6 +68,22 @@ function showMessage(message, isSuccess = true) {
         </div>
     `;
 }
+
+// Handle text selection with debounce
+const debouncedHandleTextSelection = debounce(async (event) => {
+  if (isTranslating) return;
+
+  const selectedText = window.getSelection().toString().trim();
+  if (!selectedText || selectedText.length > 100) return;
+
+  isTranslating = true;
+
+  try {
+    await handleTextSelection(event);
+  } finally {
+    isTranslating = false;
+  }
+}, 300);
 
 // Handle text selection
 async function handleTextSelection(event) {
@@ -150,37 +183,55 @@ async function saveWord(original, translation) {
   const wordData = {
     original,
     translation: translation.text,
-    context: translation.examples[0],
+    context: translation.examples[0]?.original || "",
+    context_translation: translation.examples[0]?.translation || "",
     url: window.location.href,
     timestamp: new Date().toISOString(),
     source_language: translation.sourceLang || "en",
     target_language: translation.targetLang || "tr",
   };
 
-  // Send message to background script to save the word
-  chrome.runtime.sendMessage(
-    {
-      action: "saveWord",
-      data: wordData,
-    },
-    (response) => {
-      if (response && tooltip) {
-        tooltip.innerHTML = showMessage(response.message, response.success);
+  try {
+    // Send message to background script to save the word
+    const response = await new Promise((resolve) => {
+      chrome.runtime.sendMessage(
+        {
+          action: "saveWord",
+          data: wordData,
+        },
+        (response) => resolve(response)
+      );
+    });
 
-        // Hide tooltip after 2 seconds
-        setTimeout(() => {
-          if (tooltip) {
-            tooltip.style.display = "none";
-          }
-        }, 2000);
-      }
+    if (response && tooltip) {
+      tooltip.innerHTML = showMessage(response.message, response.success);
+
+      // Hide tooltip after 2 seconds
+      setTimeout(() => {
+        if (tooltip) {
+          tooltip.style.display = "none";
+        }
+      }, 2000);
     }
-  );
+  } catch (error) {
+    console.error("Error saving word:", error);
+    if (tooltip) {
+      tooltip.innerHTML = showMessage(
+        "Kelime kaydedilirken bir hata oluştu.",
+        false
+      );
+      setTimeout(() => {
+        if (tooltip) {
+          tooltip.style.display = "none";
+        }
+      }, 2000);
+    }
+  }
 }
 
 // Event listeners
-document.addEventListener("mouseup", handleTextSelection);
-document.addEventListener("dblclick", handleTextSelection);
+document.addEventListener("mouseup", debouncedHandleTextSelection);
+document.addEventListener("dblclick", debouncedHandleTextSelection);
 
 // Close tooltip when clicking outside
 document.addEventListener("click", (event) => {

@@ -24,15 +24,30 @@ async function loadWords() {
       .map((word) => {
         const date = new Date(word.timestamp).toLocaleDateString("tr-TR");
         return `
-                <div class="word-item">
-                    <div class="word-original">${word.original}</div>
-                    <div class="word-translation">${word.translation}</div>
-                    <div class="word-context">${word.context}</div>
-                    <div class="word-meta">
-                        ${date} - <a href="${word.url}" target="_blank">Kaynak</a>
-                    </div>
-                </div>
-            `;
+          <div class="word-item">
+            <div class="word-original">${word.original}</div>
+            <div class="word-translation">${word.translation}</div>
+            ${
+              word.context
+                ? `
+              <div class="word-context">
+                <div class="context-original">${word.context}</div>
+                ${
+                  word.context_translation
+                    ? `
+                  <div class="context-translation">${word.context_translation}</div>
+                `
+                    : ""
+                }
+              </div>
+            `
+                : ""
+            }
+            <div class="word-meta">
+              ${date} - <a href="${word.url}" target="_blank">Kaynak</a>
+            </div>
+          </div>
+        `;
       })
       .join("");
 
@@ -46,6 +61,14 @@ async function loadWords() {
         `;
   }
 }
+
+// Listen for storage changes
+chrome.storage.onChanged.addListener((changes, namespace) => {
+  if (namespace === "local" && changes.words) {
+    // Reload words when storage changes
+    loadWords();
+  }
+});
 
 // Load words when popup opens
 document.addEventListener("DOMContentLoaded", loadWords);
